@@ -28,13 +28,13 @@ jobs:
         env:
           KAFKA_BROKER_ID: 1
           KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
           KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
         options: >-
           --health-cmd="bash -c 'kafka-topics --bootstrap-server localhost:9092 --list || exit 1'"
-          --health-interval=15s
-          --health-timeout=10s
+          --health-interval=10s
+          --health-timeout=5s
           --health-retries=10
 
     permissions:
@@ -43,11 +43,13 @@ jobs:
 
     steps:
 
+      # Checkout
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # JDK
       - name: Setup JDK 21
         id: java
         uses: actions/setup-java@v4
@@ -61,6 +63,7 @@ jobs:
           echo "${{ steps.java.outputs.path }}/bin" >> $GITHUB_PATH
           java -version
 
+      # Maven Cache
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -68,19 +71,21 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      # Kafka readiness
       - name: Wait for Kafka readiness
         run: |
-          for i in {1..40}; do
+          for i in {1..30}; do
             if nc -z localhost 9092; then
               echo "Kafka is ready!"
               exit 0
             fi
-            echo "Waiting Kafka... ($i/40)"
-            sleep 3
+            echo "Waiting for Kafka... ($i/30)"
+            sleep 2
           done
           echo "Kafka failed to start"
           exit 1
 
+      # Build modules
       - name: Build Producer
         working-directory: producer-service
         run: mvn -B clean verify -DskipTests=false
@@ -93,8 +98,12 @@ jobs:
         working-directory: consumer-b
         run: mvn -B clean verify -DskipTests=false
 
+      # ===============================================================
+      # SonarCloud — now ALWAYS executed (push + PR)
+      # ===============================================================
+
+      # Producer
       - name: SonarCloud Producer
-        if: github.event_name == 'pull_request'
         working-directory: producer-service
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -104,8 +113,8 @@ jobs:
             -Dsonar.organization=komfort-chain \
             -Dsonar.host.url=https://sonarcloud.io
 
+      # Consumer A
       - name: SonarCloud Consumer A
-        if: github.event_name == 'pull_request'
         working-directory: consumer-a
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -115,8 +124,8 @@ jobs:
             -Dsonar.organization=komfort-chain \
             -Dsonar.host.url=https://sonarcloud.io
 
+      # Consumer B
       - name: SonarCloud Consumer B
-        if: github.event_name == 'pull_request'
         working-directory: consumer-b
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -128,7 +137,7 @@ jobs:
 
 
   # ===============================================================
-  # JOB 2 — OWASP Dependency-Check (Smart Offline Fallback)
+  # JOB 2 — OWASP Dependency-Check
   # ===============================================================
   security-scan:
     name: OWASP Dependency-Check (Smart Offline Fallback)
@@ -137,8 +146,7 @@ jobs:
 
     steps:
 
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup JDK 21
         id: setup-java
@@ -160,6 +168,7 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
+      # Producer
       - name: Dependency-Check (Producer Service)
         working-directory: producer-service
         run: |
@@ -167,13 +176,13 @@ jobs:
           mvn -B org.owasp:dependency-check-maven:10.0.4:check \
             -Dformat=ALL -DfailOnError=false \
             -DoutputDirectory=../reports/producer-service \
-            -Dnvd.api.key=${{ secrets.NVD_API_KEY }} || (
-              mvn -B org.owasp:dependency-check-maven:10.0.4:check \
-                -Dformat=ALL -DfailOnError=false \
-                -DoutputDirectory=../reports/producer-service \
-                -Danalyzer.nvd.api.enabled=false
-            )
+            -Dnvd.api.key=${{ secrets.NVD_API_KEY }} || \
+          mvn -B org.owasp:dependency-check-maven:10.0.4:check \
+              -Dformat=ALL -DfailOnError=false \
+              -DoutputDirectory=../reports/producer-service \
+              -Danalyzer.nvd.api.enabled=false
 
+      # Consumer A
       - name: Dependency-Check (Consumer A)
         working-directory: consumer-a
         run: |
@@ -181,13 +190,13 @@ jobs:
           mvn -B org.owasp:dependency-check-maven:10.0.4:check \
             -Dformat=ALL -DfailOnError=false \
             -DoutputDirectory=../reports/consumer-a \
-            -Dnvd.api.key=${{ secrets.NVD_API_KEY }} || (
-              mvn -B org.owasp:dependency-check-maven:10.0.4:check \
-                -Dformat=ALL -DfailOnError=false \
-                -DoutputDirectory=../reports/consumer-a \
-                -Danalyzer.nvd.api.enabled=false
-            )
+            -Dnvd.api.key=${{ secrets.NVD_API_KEY }} || \
+          mvn -B org.owasp:dependency-check-maven:10.0.4:check \
+              -Dformat=ALL -DfailOnError=false \
+              -DoutputDirectory=../reports/consumer-a \
+              -Danalyzer.nvd.api.enabled=false
 
+      # Consumer B
       - name: Dependency-Check (Consumer B)
         working-directory: consumer-b
         run: |
@@ -195,12 +204,11 @@ jobs:
           mvn -B org.owasp:dependency-check-maven:10.0.4:check \
             -Dformat=ALL -DfailOnError=false \
             -DoutputDirectory=../reports/consumer-b \
-            -Dnvd.api.key=${{ secrets.NVD_API_KEY }} || (
-              mvn -B org.owasp:dependency-check-maven:10.0.4:check \
-                -Dformat=ALL -DfailOnError=false \
-                -DoutputDirectory=../reports/consumer-b \
-                -Danalyzer.nvd.api.enabled=false
-            )
+            -Dnvd.api.key=${{ secrets.NVD_API_KEY }} || \
+          mvn -B org.owasp:dependency-check-maven:10.0.4:check \
+              -Dformat=ALL -DfailOnError=false \
+              -DoutputDirectory=../reports/consumer-b \
+              -Danalyzer.nvd.api.enabled=false
 
       - name: Upload Dependency-Check Reports
         uses: actions/upload-artifact@v4
@@ -208,7 +216,6 @@ jobs:
           name: dependency-check-reports
           path: '**/reports/**'
           if-no-files-found: ignore
-
 
 
   # ===============================================================
