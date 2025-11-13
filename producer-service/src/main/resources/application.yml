@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: producer-service
+
+  kafka:
+    bootstrap-servers: ${BOOTSTRAP_SERVERS}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    properties:
+      max.request.size: 1048576
+
+logging:
+  level:
+    root: INFO
+
+topic:
+  name: mensagens

@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: consumer-a
+
+  kafka:
+    bootstrap-servers: ${BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: grupo-consumidores
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+logging:
+  level:
+    root: INFO
+
+topic:
+  name: mensagens
