@@ -99,42 +99,17 @@ jobs:
         run: mvn -B clean verify -DskipTests=false
 
       # ===============================================================
-      # SonarCloud — now ALWAYS executed (push + PR)
+      # SonarCloud — ONE PROJECT ONLY
       # ===============================================================
-
-      # Producer
-      - name: SonarCloud Producer
+      - name: SonarCloud Analysis (Unified Project)
         working-directory: producer-service
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           mvn -B sonar:sonar \
-            -Dsonar.projectKey=Komfort-chain_modulo4_producer \
+            -Dsonar.projectKey=Komfort-chain_modulo4 \
             -Dsonar.organization=komfort-chain \
             -Dsonar.host.url=https://sonarcloud.io
-
-      # Consumer A
-      - name: SonarCloud Consumer A
-        working-directory: consumer-a
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          mvn -B sonar:sonar \
-            -Dsonar.projectKey=Komfort-chain_modulo4_consumerA \
-            -Dsonar.organization=komfort-chain \
-            -Dsonar.host.url=https://sonarcloud.io
-
-      # Consumer B
-      - name: SonarCloud Consumer B
-        working-directory: consumer-b
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          mvn -B sonar:sonar \
-            -Dsonar.projectKey=Komfort-chain_modulo4_consumerB \
-            -Dsonar.organization=komfort-chain \
-            -Dsonar.host.url=https://sonarcloud.io
-
 
   # ===============================================================
   # JOB 2 — OWASP Dependency-Check
@@ -216,7 +191,6 @@ jobs:
           name: dependency-check-reports
           path: '**/reports/**'
           if-no-files-found: ignore
-
 
   # ===============================================================
   # JOB 3 — Docker Build & Push
