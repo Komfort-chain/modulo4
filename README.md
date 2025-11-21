@@ -1,117 +1,208 @@
-# Módulo 4 — Kafka Cluster + Producer/Consumers (Komfort Chain)
+# **Módulo 4 — Kafka Cluster + Producer e Consumers (Komfort Chain)**
 
-O **Módulo 4** da suíte **Komfort Chain** implementa um ecossistema completo de **mensageria distribuída** utilizando Apache Kafka.  
-A arquitetura inclui:
+O **Módulo 4** da suíte **Komfort Chain** apresenta um ecossistema completo de **mensageria distribuída**, formado por um **Producer**, dois **Consumers independentes** e um **cluster Kafka** com **três brokers**.
+Ele demonstra, na prática, como implementar **Event-Driven Architecture**, escalabilidade horizontal, tolerância a falhas e processamento assíncrono seguro e eficiente.
 
-- Um **serviço produtor**  
-- Dois **consumidores independentes**  
-- Um **cluster Kafka com três brokers** e **cinco partições**  
-- Integração com logs estruturados via **Graylog**  
-- Pipeline CI/CD completo com **SonarCloud**, **OWASP Dependency-Check** e **Docker Hub**
-
-Este módulo demonstra, na prática, os princípios de **Event-Driven Architecture**, **alta disponibilidade**, **resiliência**, **escalabilidade horizontal** e **processamento assíncrono**.
+Assim como nos demais módulos, toda a estrutura segue **Clean Architecture**, **SOLID**, pipelines padronizados de **CI/CD**, análise estática com **SonarCloud**, verificação de vulnerabilidades com **OWASP Dependency-Check**, monitoramento via **Graylog** e empacotamento com **Docker**.
 
 ---
 
-## Status do Projeto
+## **Status do Projeto**
 
 [![Full CI/CD](https://github.com/Komfort-chain/modulo4/actions/workflows/full-ci.yml/badge.svg)](https://github.com/Komfort-chain/modulo4/actions/workflows/full-ci.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Komfort-chain_modulo4\&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Komfort-chain_modulo4)
 
-[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=Komfort-chain_modulo4&metric=alert_status)](https://sonarcloud.io/summary/overall?id=Komfort-chain_modulo4)
-
-[![Docker Hub - Producer](https://img.shields.io/badge/DockerHub-magyodev/modulo4--producer-blue)](https://hub.docker.com/r/magyodev/modulo4-producer)
-[![Docker Hub - Consumer A](https://img.shields.io/badge/DockerHub-magyodev/modulo4--consumer--a-blue)](https://hub.docker.com/r/magyodev/modulo4-consumer-a)
-[![Docker Hub - Consumer B](https://img.shields.io/badge/DockerHub-magyodev/modulo4--consumer--b-blue)](https://hub.docker.com/r/magyodev/modulo4-consumer-b)
-
-![Java 21](https://img.shields.io/badge/Java-21-red)
-![Spring Boot 3.5.7](https://img.shields.io/badge/Spring_Boot-3.5.7-brightgreen)
-![Kafka](https://img.shields.io/badge/Apache_Kafka-7.5.1-black)
+**Docker Hub (imagens oficiais):**
+[Producer](https://hub.docker.com/r/magyodev/modulo4-producer) •
+[Consumer A](https://hub.docker.com/r/magyodev/modulo4-consumer-a) •
+[Consumer B](https://hub.docker.com/r/magyodev/modulo4-consumer-b)
 
 ---
 
-## Tecnologias Utilizadas
+## **Tecnologias Utilizadas**
 
-| Categoria            | Tecnologias / Ferramentas                     |
-|---------------------|------------------------------------------------|
-| **Linguagem**       | Java 21                                        |
-| **Frameworks**      | Spring Boot 3.5.7 • Spring Kafka               |
-| **Mensageria**      | Kafka Cluster (3 Brokers) + Zookeeper          |
-| **Arquitetura**     | Event-Driven • Clean Architecture • SOLID      |
-| **Testes**          | JUnit 5 • Spring Boot Test                     |
-| **Logs**            | Logback GELF → Graylog 5.1                     |
-| **Build**           | Maven Wrapper (`mvnw`)                         |
-| **Análise Estática**| SonarCloud                                     |
-| **Segurança**       | OWASP Dependency-Check                         |
-| **Containerização** | Docker • Docker Compose                        |
+| Categoria        | Ferramentas / Tecnologias                              |
+| ---------------- | ------------------------------------------------------ |
+| Linguagem        | Java 21                                                |
+| Framework        | Spring Boot 3.5.7 • Spring Kafka                       |
+| Mensageria       | Apache Kafka (Cluster com 3 brokers) + Zookeeper       |
+| Logs             | Logback GELF → Graylog                                 |
+| Testes           | JUnit 5 • Spring Boot Test                             |
+| Build            | Maven Wrapper (mvnw)                                   |
+| Análise Estática | SonarCloud                                             |
+| Segurança        | OWASP Dependency-Check                                 |
+| Containerização  | Docker e Docker Compose                                |
+| Arquitetura      | Event-Driven Architecture • Clean Architecture • SOLID |
 
 ---
 
-## Arquitetura
+# **Arquitetura Geral**
 
-O módulo é composto pelos seguintes serviços:
+O módulo é composto por quatro microserviços leves, cada um com responsabilidade bem definida:
 
-- **Producer Service** → publica mensagens no tópico `mensagens`
-- **Consumer A** → consome todas as mensagens
-- **Consumer B** → consome todas as mensagens
-- **Kafka Cluster (Broker 1, 2 e 3)** → replicação e tolerância a falhas
-- **Graylog (opcional)** → logs centralizados
+* **Producer Service** → recebe requisições REST e publica mensagens no tópico `mensagens`.
+* **Consumer A** → consome 100% das mensagens.
+* **Consumer B** → também consome 100% das mensagens.
+* **Kafka Cluster (3 brokers)** → garante replicação, tolerância a falhas e distribuição entre partições.
 
-### Fluxo Arquitetural
+### **Fluxo Arquitetural**
 
 ```
+Cliente → Producer API → Kafka Cluster (3 brokers, 5 partitions)
+                  ├── Consumer A (grupo-a)
+                  └── Consumer B (grupo-b)
+```
 
-Client → Producer API → Kafka Cluster (3 brokers / 5 partitions)
-├── Consumer A
-└── Consumer B
-
-````
-
-Ambos os consumidores utilizam **Group IDs diferentes**, garantindo consumo **independente** e processamento integral das mensagens.
+Por usarem **Group IDs diferentes**, ambos recebem todas as mensagens, garantindo dois fluxos independentes — prática comum em sistemas de monitoramento, processamento paralelo, auditoria ou replicação de dados.
 
 ---
 
-## Estrutura do Projeto
+# **Organização das Pastas e Justificativa da Estrutura**
+
+A estrutura segue exatamente o mesmo padrão dos módulos anteriores:
 
 ```bash
 modulo4/
 ├── docker-compose.yml
 ├── .github/workflows/
-│   ├── full-ci.yml       # Build + Test + SonarCloud + OWASP + Docker Hub
+│   ├── full-ci.yml
 │   └── release.yml
 │
 ├── producer-service/
-│   ├── Dockerfile
+├── consumer-a/
+└── consumer-b/
+```
+
+A divisão por microserviço é essencial, pois cada aplicação possui:
+
+* ciclo próprio de build,
+* dependências isoladas,
+* Dockerfile independente,
+* pipelines individuais,
+* versionamento próprio.
+
+## **1. `producer-service/` — Serviço Publicador**
+
+```
+producer-service/
+├── application/service/       # Lógica de envio de mensagens
+├── domain/                    # DTO de entrada
+└── presentation/controller/   # Endpoints REST
+```
+
+### **Principais arquivos**
+
+| Arquivo                | Função                                              |
+| ---------------------- | --------------------------------------------------- |
+| `KafkaProducerService` | Envia mensagens ao Kafka. Isola a lógica de envio.  |
+| `MessagePayload`       | Modelo de entrada enviado pela API.                 |
+| `ProducerController`   | Endpoint `/producer/enviar`, ponto de entrada HTTP. |
+
+**Por que essa divisão?**
+Separa o endpoint HTTP (presentation), a regra de publicação (application) e o modelo (domain). Esse isolamento segue exatamente Clean Architecture e mantém o produtor fácil de testar e evoluir.
+
+---
+
+## **2. `consumer-a/` — Consumidor A**
+
+```
+consumer-a/
+├── application/ConsumerAService.java
+└── infrastructure/listener/MessageListener.java
+```
+
+### **MessageListener**
+
+* escuta eventos do tópico `mensagens`;
+* pertence à camada infrastructure, pois depende de Kafka;
+* delega para `ConsumerAService`, que contém a lógica de negócio.
+
+### **ConsumerAService**
+
+* camada application;
+* ponto seguro para aplicar qualquer lógica futura (persistência, transformação etc.).
+
+---
+
+## **3. `consumer-b/` — Consumidor B**
+
+Estrutura idêntica ao consumer A, mantendo padronização entre microserviços:
+
+```
+consumer-b/
+├── application/ConsumerBService.java
+└── infrastructure/listener/MessageListener.java
+```
+
+### Por que dois consumidores?
+
+* **Mesma mensagem, duas finalidades diferentes**.
+  Ex.: um faz auditoria, outro faz análise de dados.
+
+* Mantém o módulo didático para demonstrar padrões reais de EDA.
+
+---
+
+# **Por que esses nomes?**
+
+A nomenclatura segue **consistência com os módulos anteriores**:
+
+| Nome                        | Justificativa                                                |
+| --------------------------- | ------------------------------------------------------------ |
+| `producer-service`          | Microserviço dedicado a publicação de eventos.               |
+| `consumer-a` / `consumer-b` | Consumidores independentes em grupos separados.              |
+| `KafkaProducerService`      | Aplica SRP: uma classe = uma responsabilidade.               |
+| `MessageListener`           | Nome padrão do Spring Kafka para classes reativas a eventos. |
+| `MessagePayload`            | Indica dado recebido externamente antes da publicação.       |
+
+Os nomes seguem convenções do ecossistema Spring, Kafka e Clean Architecture.
+
+---
+
+# **Estrutura Completa do Projeto**
+
+```bash
+modulo4/
+├── docker-compose.yml
+├── .github/workflows/
+│   ├── full-ci.yml
+│   └── release.yml
+│
+├── producer-service/
 │   ├── pom.xml
+│   ├── Dockerfile
 │   └── src/main/java/com/cabos/producer_service/
 │       ├── application/service/KafkaProducerService.java
 │       ├── domain/MessagePayload.java
 │       └── presentation/controller/ProducerController.java
 │
 ├── consumer-a/
+│   ├── pom.xml
 │   ├── Dockerfile
 │   └── src/main/java/com/cabos/consumer_a/
 │       ├── application/ConsumerAService.java
 │       └── infrastructure/listener/MessageListener.java
 │
 └── consumer-b/
+    ├── pom.xml
     ├── Dockerfile
     └── src/main/java/com/cabos/consumer_b/
         ├── application/ConsumerBService.java
         └── infrastructure/listener/MessageListener.java
-````
+```
 
 ---
 
-## Execução Local
+# **Execução Local**
 
-### 1. Clonar o repositório
+## 1. Clonar o repositório
 
 ```bash
 git clone https://github.com/Komfort-chain/modulo4.git
 cd modulo4
 ```
 
-### 2. Gerar os artefatos
+## 2. Build dos serviços
 
 ```bash
 cd producer-service && ./mvnw clean package -DskipTests
@@ -120,67 +211,33 @@ cd ../consumer-b && ./mvnw clean package -DskipTests
 cd ..
 ```
 
-### 3. Subir a arquitetura completa
+## 3. Subir toda a stack
 
 ```bash
 docker compose up --build -d
 ```
 
-### 4. Verificar containers ativos
-
-```bash
-docker ps
-```
-
 ---
 
-## Endpoints (Producer API)
+# **Producer API — Endpoints**
 
 ### Enviar mensagem
 
-```http
+```
 POST http://localhost:8080/producer/enviar
-Content-Type: application/json
 ```
 
 ### Body
 
 ```json
 {
-  "mensagem": "Mensagem enviada pelo Producer"
+  "mensagem": "Teste do Producer"
 }
 ```
 
-### Resposta
-
-```json
-Mensagem enviada!
-```
-
 ---
 
-## Testes via Kafka CLI
-
-### Produzir mensagens
-
-```bash
-docker run -it --network modulo4_net confluentinc/cp-kafka:7.5.1 \
-  kafka-console-producer --broker-list kafka1:9092 --topic mensagens
-```
-
-### Consumir mensagens
-
-```bash
-docker run -it --network modulo4_net confluentinc/cp-kafka:7.5.1 \
-  kafka-console-consumer --bootstrap-server kafka1:9092 \
-  --topic mensagens --from-beginning
-```
-
----
-
-## Logs e Monitoramento
-
-### Logs dos consumidores
+# **Logs dos Consumers**
 
 ```bash
 docker logs -f consumer-a
@@ -190,118 +247,88 @@ docker logs -f consumer-b
 Saída esperada:
 
 ```
-[Consumer A] Mensagem recebida: Mensagem enviada pelo Producer
-[Consumer B] Mensagem recebida: Mensagem enviada pelo Producer
-```
-
-### Graylog (opcional)
-
-```
-http://localhost:9009
+Consumer A recebeu: Teste do Producer
+Consumer B recebeu: Teste do Producer
 ```
 
 ---
 
-## Pipeline CI/CD — GitHub Actions
+# **Pipeline CI/CD**
 
-O módulo conta com um pipeline completo de **DevSecOps**, estruturado em três estágios principais:
+O módulo possui um pipeline completo composto por dois workflows:
 
----
+### **1. full-ci.yml**
 
-### 🔹 1. Build, Testes e Análise (`full-ci.yml`)
+Executado a cada commit/pull request.
+Realiza:
 
-Executado em **push** e **pull request**, realiza:
+* build dos três microserviços
+* testes unitários
+* análise SonarCloud
+* OWASP Dependency-Check
+* build + push das imagens Docker
 
-* Build dos três serviços
-* Testes automatizados
-* Testes de integração com Kafka
-* Análise estática com **SonarCloud**
-* Upload de relatórios de cobertura
-* Garantia da qualidade antes de qualquer merge
+### **2. release.yml**
 
-**Status:**
+Executado ao criar uma tag `vX.Y.Z`.
 
-[![Full CI/CD](https://github.com/Komfort-chain/modulo4/actions/workflows/full-ci.yml/badge.svg)](https://github.com/Komfort-chain/modulo4/actions/workflows/full-ci.yml)
-
----
-
-### 🔹 2. Segurança — OWASP Dependency-Check
-
-* Scans automáticos de vulnerabilidades nos três microserviços
-* Fallback inteligente caso o NVD esteja indisponível
-* Upload dos relatórios como Artifact
-* Conformidade com boas práticas de **DevSecOps**
+* gera changelog
+* cria release no GitHub
+* envia artefatos
+* publica imagens versionadas no Docker Hub
 
 ---
 
-### 🔹 3. Build & Push das Imagens Docker — Docker Hub
+# **Imagens Oficiais Docker**
 
-* Build automatizado das imagens
-* Tags `latest` e por execução (`run_number`)
-* Publicação dos serviços:
+| Serviço    | Repositório                   |
+| ---------- | ----------------------------- |
+| Producer   | `magyodev/modulo4-producer`   |
+| Consumer A | `magyodev/modulo4-consumer-a` |
+| Consumer B | `magyodev/modulo4-consumer-b` |
+
+Tags disponíveis:
+
+* `latest`
+* `${run_number}`
+* `vX.Y.Z`
+
+---
+
+# **Diagrama Simplificado**
 
 ```
-magyodev/modulo4-producer
-magyodev/modulo4-consumer-a
-magyodev/modulo4-consumer-b
-```
-
----
-
-### Tabela de Workflows
-
-| Workflow     | Função                                          | Evento                 |
-| ------------ | ----------------------------------------------- | ---------------------- |
-| full-ci.yml  | Build + Testes + SonarCloud + OWASP + DockerHub | push / pull_request    |
-| OWASP Scan   | Varredura de vulnerabilidades                   | Integrado ao CI        |
-| Docker Build | Build e publicação de imagens Docker            | Após pipeline completo |
-
----
-
-## Imagens Docker
-
-| Serviço    | Docker Hub Repository                                                                                        |
-| ---------- | ------------------------------------------------------------------------------------------------------------ |
-| Producer   | [https://hub.docker.com/r/magyodev/modulo4-producer](https://hub.docker.com/r/magyodev/modulo4-producer)     |
-| Consumer A | [https://hub.docker.com/r/magyodev/modulo4-consumer-a](https://hub.docker.com/r/magyodev/modulo4-consumer-a) |
-| Consumer B | [https://hub.docker.com/r/magyodev/modulo4-consumer-b](https://hub.docker.com/r/magyodev/modulo4-consumer-b) |
-
----
-
-## Diagrama Simplificado
-
-```
-              ┌────────────────┐
-              │ Producer API   │
-              └───────┬────────┘
-                      │ envia
-                      ▼
-         ┌──────────────────────────────┐
-         │     Kafka Cluster (3 brokers)│
-         │  Replication + 5 partitions  │
-         └─────────┬──────────┬────────┘
-                   │          │
-                   ▼          ▼
-       ┌────────────────┐   ┌────────────────┐
-       │   Consumer A   │   │   Consumer B   │
-       └────────────────┘   └────────────────┘
+Cliente
+   │
+   ▼
+┌────────────────┐
+│ Producer API   │
+└───────┬────────┘
+        │ publica
+        ▼
+┌──────────────────────────────┐
+│  Kafka Cluster (3 brokers)   │
+│  5 partitions + replicação   │
+└─────────┬──────────┬────────┘
+          │          │
+          ▼          ▼
+  Consumer A     Consumer B
 ```
 
 ---
 
-## Contribuição
+# **Contribuição**
 
-1. Faça um fork do projeto
+1. Faça um fork
 2. Crie uma branch: `feature/minha-melhoria`
-3. Realize commits semânticos
-4. Envie um Pull Request para `main`
+3. Use commits semânticos
+4. Envie um Pull Request
 
 ---
 
-## Autor
+# **Autor**
 
 **Alan de Lima Silva (MagyoDev)**
-- GitHub: [https://github.com/MagyoDev](https://github.com/MagyoDev)
-- Docker Hub: [https://hub.docker.com/u/magyodev](https://hub.docker.com/u/magyodev)
-- E-mail: [magyodev@gmail.com](mailto:magyodev@gmail.com)
-
+* GitHub: [https://github.com/MagyoDev](https://github.com/MagyoDev)
+* Docker Hub: [https://hub.docker.com/u/magyodev](https://hub.docker.com/u/magyodev)
+* E-mail: [magyodev@gmail.com](mailto:magyodev@gmail.com)
