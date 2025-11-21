@@ -15,51 +15,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # --------------------------
-      # CHECKOUT
-      # --------------------------
+      # Checkout do repositório
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # --------------------------
-      # JAVA SETUP
-      # --------------------------
+      # Configura Java 21
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
-      # --------------------------
-      # BUILD PRODUCER
-      # --------------------------
+      # Build do Producer
       - name: Build Producer Service
         working-directory: producer-service
         run: |
           chmod +x mvnw
           ./mvnw -B clean package -DskipTests=true
 
-      # --------------------------
-      # BUILD CONSUMER A
-      # --------------------------
+      # Build do Consumer A
       - name: Build Consumer A
         working-directory: consumer-a
         run: |
           chmod +x mvnw
           ./mvnw -B clean package -DskipTests=true
 
-      # --------------------------
-      # BUILD CONSUMER B
-      # --------------------------
+      # Build do Consumer B
       - name: Build Consumer B
         working-directory: consumer-b
         run: |
           chmod +x mvnw
           ./mvnw -B clean package -DskipTests=true
 
-      # --------------------------
-      # CHANGELOG AUTOMÁTICO
-      # --------------------------
+      # Gera changelog automático
       - name: Generate changelog
         id: changelog
         uses: mikepenz/release-changelog-builder-action@v5
@@ -70,9 +58,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # --------------------------
-      # PUBLICAR RELEASE
-      # --------------------------
+      # Cria a release no GitHub
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
